@@ -1,0 +1,22 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+## [v1.0.0] - 2026-07-08
+
+### Added
+
+- Initial Hero Rush web game.
+- Three.js arena with animated player squad, bots, monsters, chests, pickups and effects.
+- Six playable hero roles: tank, ranger, mage, healer, assassin and support.
+- Shop upgrades for speed, damage and health.
+- Responsive menu, HUD, results screen and mobile joystick.
+- Local static server for asset loading.
+- NPM scripts for local start, syntax checks and 3D smoke testing.
+- Playwright-based 3D smoke check for desktop and mobile viewports.
+- Desktop and mobile verification screenshots.
+
+### Documentation
+
+- Added project README with run instructions, controls, structure and verification steps.
+- Added changelog for the first tagged release.

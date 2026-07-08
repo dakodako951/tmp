@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Hero Rush</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main id="app">
+      <section id="menu" class="screen active">
+        <div class="hero">
+          <div class="brand">
+            <span class="logo-mark"></span>
+            <span>Hero Rush</span>
+          </div>
+          <h1>Hero Rush</h1>
+          <p>Собирай отряд, открывай сундуки, побеждай ботов и уноси больше кристаллов до конца матча.</p>
+          <button id="playButton" class="primary">Играть</button>
+        </div>
+        <div class="panel roster-panel">
+          <h2>Выбор героя</h2>
+          <div id="heroSelect" class="hero-select"></div>
+        </div>
+        <div class="panel shop-panel">
+          <div class="panel-head">
+            <h2>Магазин</h2>
+            <div class="wallet"><span id="walletCoins">0</span> монет</div>
+          </div>
+          <div id="shopItems" class="shop-items"></div>
+        </div>
+      </section>
+
+      <section id="game" class="screen">
+        <canvas id="gameCanvas" width="1280" height="720" aria-label="Игровая арена"></canvas>
+        <div class="hud top-left">
+          <div class="stat"><span id="timer">3:00</span><small>время</small></div>
+          <div class="stat"><span id="gems">0</span><small>кристаллы</small></div>
+          <div class="stat"><span id="coins">0</span><small>монеты</small></div>
+        </div>
+        <div id="squadBar" class="squad-bar"></div>
+        <button id="pauseButton" class="icon-button" aria-label="Пауза">II</button>
+        <div id="joystick" class="joystick" aria-label="Виртуальный джойстик">
+          <div id="stick" class="stick"></div>
+        </div>
+      </section>
+
+      <section id="results" class="screen">
+        <div class="results-card">
+          <h1 id="resultTitle">Матч завершен</h1>
+          <div id="rewardLine" class="reward-line"></div>
+          <div id="scoreboard" class="scoreboard"></div>
+          <div class="result-actions">
+            <button id="againButton" class="primary">Еще матч</button>
+            <button id="menuButton" class="secondary">Меню</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
