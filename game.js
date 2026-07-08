@@ -41,6 +41,15 @@ const heroes = [
   { id: "support", name: "Нова", role: "саппорт", icon: "star", portrait: "иконки персонажей/саппорт.jpg", color: "#00a8a8", hp: 130, damage: 12, range: 112, speed: 152, rarity: "common" }
 ];
 
+const heroLooks = {
+  tank: { primary: 0xe1a21a, secondary: 0x1169d8, dark: 0x24282d, skin: 0xbfc7c9, hair: 0x474f54, boot: 0x20242a },
+  ranger: { primary: 0x55ef35, secondary: 0x1f58ba, dark: 0x1b2228, skin: 0x6f4632, hair: 0xd8c27b, boot: 0x163f85 },
+  mage: { primary: 0x252033, secondary: 0x7b6aa6, dark: 0x15131f, skin: 0xc89d7b, hair: 0xd8d2c4, boot: 0x2a1d18 },
+  healer: { primary: 0x8a553d, secondary: 0xb88962, dark: 0x3b241d, skin: 0xd09b74, hair: 0x2d1d1a, boot: 0x3a2018 },
+  assassin: { primary: 0x20242d, secondary: 0x5b2330, dark: 0x11151c, skin: 0xbfa08f, hair: 0x11151c, boot: 0x11151c },
+  support: { primary: 0xf2eee4, secondary: 0x22242c, dark: 0x151821, skin: 0xe8c6a3, hair: 0x05070c, boot: 0x20242c }
+};
+
 const portraitImages = new Map();
 heroes.forEach((hero) => {
   const image = new Image();
@@ -206,6 +215,8 @@ function makeUnit(heroId, x, y, owner, level = 1) {
     y,
     vx: 0,
     vy: 0,
+    faceAngle: 0,
+    walkPhase: rand(0, Math.PI * 2),
     hp,
     maxHp: hp,
     damage: hero.damage * (1 + (level - 1) * 0.55) * (owner === "player" && save.upgrades.blade ? 1.1 : 1),
@@ -258,7 +269,7 @@ function createGame() {
     pickups: addCenterPickups(pickups, world),
     obstacles: spawnObstacles(world),
     effects: [],
-    camera: { x: 0, y: 0 },
+    camera: { x: player.x, y: player.y },
     timeLeft: 180,
     ended: false,
     paused: false,
@@ -410,14 +421,15 @@ function buildArena3D() {
 
 function makeUnitMesh(unit, isPlayer) {
   const group = new THREE.Group();
-  const baseColor = new THREE.Color(unit.color);
+  const look = heroLooks[unit.heroId] || heroLooks.tank;
+  const baseColor = new THREE.Color(look.primary);
   const darkColor = baseColor.clone().multiplyScalar(0.62);
-  const skinMat = makeMat(0xffd2a6, 0.58, 0.03);
-  const bootMat = makeMat(0x26313a, 0.62, 0.04);
+  const skinMat = makeMat(look.skin, 0.58, 0.03);
+  const bootMat = makeMat(look.boot, 0.62, 0.04);
 
   const torso = new THREE.Mesh(
     new THREE.CapsuleGeometry(unit.radius * 0.52, unit.radius * 0.9, 5, 12),
-    makeMat(unit.color, 0.55, 0.08)
+    makeMat(look.primary, 0.55, 0.08)
   );
   torso.position.y = unit.radius * 1.18;
   torso.scale.set(1.08, 1, 0.72);
@@ -435,7 +447,7 @@ function makeUnitMesh(unit, isPlayer) {
 
   const hair = new THREE.Mesh(
     new THREE.SphereGeometry(unit.radius * 0.5, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.48),
-    makeMat(darkColor, 0.58, 0.04)
+    makeMat(look.hair, 0.58, 0.04)
   );
   hair.position.y = unit.radius * 2.3;
   hair.castShadow = true;
@@ -457,11 +469,12 @@ function makeUnitMesh(unit, isPlayer) {
   [-1, 1].forEach((side) => {
     const arm = new THREE.Mesh(
       new THREE.CapsuleGeometry(unit.radius * 0.16, unit.radius * 0.72, 4, 8),
-      makeMat(unit.color, 0.56, 0.07)
+      makeMat(look.primary, 0.56, 0.07)
     );
     arm.position.set(side * unit.radius * 0.66, unit.radius * 1.18, 0);
     arm.rotation.z = side * 0.28;
     arm.castShadow = true;
+    arm.userData.walkLimb = true;
     group.add(arm);
 
     const hand = new THREE.Mesh(
@@ -474,11 +487,12 @@ function makeUnitMesh(unit, isPlayer) {
 
     const leg = new THREE.Mesh(
       new THREE.CapsuleGeometry(unit.radius * 0.18, unit.radius * 0.62, 4, 8),
-      makeMat(darkColor, 0.62, 0.04)
+      makeMat(look.secondary, 0.62, 0.04)
     );
     leg.position.set(side * unit.radius * 0.25, unit.radius * 0.43, 0);
     leg.rotation.z = -side * 0.08;
     leg.castShadow = true;
+    leg.userData.walkLimb = true;
     group.add(leg);
 
     const foot = new THREE.Mesh(
@@ -514,6 +528,8 @@ function makeUnitMesh(unit, isPlayer) {
   classBadge.position.set(unit.radius * 0.5, unit.radius * 2.52, -unit.radius * 0.42);
   group.add(classBadge);
 
+  addHeroLookDetails(group, unit, look);
+
   const barBack = new THREE.Mesh(new THREE.PlaneGeometry(unit.radius * 2, 4), new THREE.MeshBasicMaterial({ color: 0x21303a }));
   const bar = new THREE.Mesh(new THREE.PlaneGeometry(unit.radius * 2, 4), new THREE.MeshBasicMaterial({ color: 0x5be37d }));
   barBack.position.set(0, unit.radius * 2.95, 0);
@@ -521,7 +537,7 @@ function makeUnitMesh(unit, isPlayer) {
   group.add(barBack, bar);
   group.userData = { hpBar: bar, hpMaxWidth: unit.radius * 2, billboards: [barBack, bar, classBadge], body: torso, limbs: [] };
   group.children.forEach((child) => {
-    if (child.geometry && child.geometry.type === "CapsuleGeometry" && child !== torso) {
+    if (child.userData.walkLimb) {
       group.userData.limbs.push(child);
     }
   });
@@ -539,6 +555,77 @@ function makeHeroChestIcon(unit) {
     })
   );
   return icon;
+}
+
+function addHeroLookDetails(group, unit, look) {
+  const r = unit.radius;
+  const parts = [];
+  const mat = (color, roughness = 0.55, metalness = 0.05) => makeMat(color, roughness, metalness);
+  const add = (mesh, x, y, z, rx = 0, ry = 0, rz = 0) => {
+    mesh.position.set(x, y, z);
+    mesh.rotation.set(rx, ry, rz);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    parts.push(mesh);
+    return mesh;
+  };
+
+  if (unit.heroId === "tank") {
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 1.55, r * 0.38, r * 0.72), mat(look.primary, 0.45, 0.25)), 0, r * 1.45, r * 0.04);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.32, r * 1.0, r * 0.18), mat(look.secondary, 0.38, 0.22)), 0, r * 1.44, r * 0.48);
+    add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.42, 16, 10), mat(look.skin, 0.28, 0.18)), 0, r * 2.18, r * 0.18);
+    add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.34, r * 1.0, 4), mat(look.primary, 0.42, 0.18)), 0, r * 2.38, -r * 0.45, Math.PI * 0.5, 0, Math.PI * 0.25);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.24, r * 0.9, r * 0.9), mat(look.dark, 0.5, 0.25)), -r * 0.92, r * 1.28, r * 0.05, 0, 0, 0.18);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.45, r * 0.58, r * 0.12), mat(0x12d7df, 0.22, 0.15)), 0, r * 1.54, r * 0.52);
+  }
+
+  if (unit.heroId === "ranger") {
+    for (let i = -2; i <= 2; i++) {
+      add(new THREE.Mesh(new THREE.CapsuleGeometry(r * 0.075, r * 0.88, 4, 6), mat(look.hair, 0.7, 0.02)), i * r * 0.12, r * 2.44, -r * 0.32, 0.85, 0, i * 0.12);
+    }
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.68, r * 0.12, r * 0.08), mat(0x8cff2e, 0.25, 0.05)), 0, r * 2.2, r * 0.47);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.62, r * 0.54, r * 0.2), mat(look.secondary, 0.42, 0.16)), -r * 0.9, r * 1.28, r * 0.26, 0, 0.28, 0.18);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(r * 0.08, r * 0.08, r * 0.86, 12), mat(0x8cff2e, 0.25, 0.1)), -r * 1.12, r * 1.28, r * 0.54, Math.PI / 2, 0.2, 0);
+    add(new THREE.Mesh(new THREE.TorusGeometry(r * 0.5, r * 0.045, 6, 18), mat(0x80ff2f, 0.25, 0.12)), 0, r * 0.95, r * 0.15, Math.PI / 2);
+  }
+
+  if (unit.heroId === "mage") {
+    add(new THREE.Mesh(new THREE.CylinderGeometry(r * 0.95, r * 0.18, r * 0.1, 28), mat(look.dark, 0.72, 0.02)), 0, r * 2.48, 0);
+    add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.55, r * 1.15, 28), mat(look.dark, 0.7, 0.02)), 0, r * 2.92, 0);
+    add(new THREE.Mesh(new THREE.CapsuleGeometry(r * 0.2, r * 0.72, 5, 8), mat(0xe8e0d4, 0.78, 0.01)), 0, r * 1.85, r * 0.47);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(r * 0.055, r * 0.055, r * 2.2, 10), mat(0x5b3a24, 0.6, 0.04)), r * 0.98, r * 1.45, r * 0.15, 0.18, 0, 0.05);
+    add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.18, 14, 10), new THREE.MeshBasicMaterial({ color: 0x77e9ff })), r * 1.08, r * 2.52, r * 0.04);
+    add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.72, r * 1.2, 4), mat(look.primary, 0.74, 0.01)), 0, r * 0.94, -r * 0.18, 0, Math.PI / 4, 0);
+  }
+
+  if (unit.heroId === "healer") {
+    add(new THREE.Mesh(new THREE.TorusGeometry(r * 0.66, r * 0.16, 8, 20), mat(0x6b5849, 0.86, 0.01)), 0, r * 1.72, 0, Math.PI / 2);
+    add(new THREE.Mesh(new THREE.CapsuleGeometry(r * 0.26, r * 0.78, 5, 8), mat(look.hair, 0.8, 0.01)), 0, r * 1.82, r * 0.43);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.98, r * 0.18, r * 0.2), mat(0x5a2f22, 0.62, 0.03)), 0, r * 1.18, r * 0.48);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 1.1, r * 0.44, r * 0.16), mat(look.secondary, 0.74, 0.01)), 0, r * 0.92, r * 0.44);
+    add(new THREE.Mesh(new THREE.CapsuleGeometry(r * 0.18, r * 0.66, 4, 8), mat(0x7d3f31, 0.62, 0.03)), r * 0.88, r * 1.0, r * 0.18, 0.1, 0, -0.36);
+  }
+
+  if (unit.heroId === "assassin") {
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.88, r * 0.34, r * 0.08), mat(0x11151c, 0.6, 0.02)), 0, r * 2.14, r * 0.49);
+    add(new THREE.Mesh(new THREE.ConeGeometry(r * 0.76, r * 1.15, 4), mat(look.dark, 0.78, 0.01)), 0, r * 0.94, -r * 0.26, 0, Math.PI / 4, 0);
+    [-1, 1].forEach((side) => {
+      add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.13, r * 0.92, r * 0.08), mat(0xd8dde4, 0.35, 0.35)), side * r * 0.95, r * 0.72, r * 0.35, 0, 0, side * 0.45);
+      add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.44, r * 0.12, r * 0.1), mat(0x5b2330, 0.48, 0.08)), side * r * 0.5, r * 1.28, r * 0.5);
+    });
+  }
+
+  if (unit.heroId === "support") {
+    add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.58, 20, 14), mat(0xf2eee4, 0.42, 0.08)), 0, r * 2.18, 0);
+    add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.42, 20, 10), new THREE.MeshBasicMaterial({ color: 0x11151c })), 0, r * 2.22, r * 0.23);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 1.0, r * 0.95, r * 0.28), mat(0xf2eee4, 0.48, 0.07)), 0, r * 1.18, -r * 0.08);
+    add(new THREE.Mesh(new THREE.BoxGeometry(r * 0.76, r * 0.82, r * 0.22), mat(0x252934, 0.52, 0.08)), 0, r * 1.24, -r * 0.5);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(r * 0.025, r * 0.025, r * 0.75, 8), mat(0x11151c, 0.38, 0.15)), r * 0.44, r * 2.72, -r * 0.1, 0.2);
+    add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.08, 8, 6), new THREE.MeshBasicMaterial({ color: 0x13c7d4 })), r * 0.5, r * 3.06, -r * 0.13);
+  }
+
+  group.userData.detailParts = parts;
 }
 
 function makePickupMesh(pickup) {
@@ -611,10 +698,10 @@ function resizeCanvas() {
 function inputVector() {
   let x = joystick.x;
   let y = joystick.y;
-  if (keys.has("ArrowLeft") || keys.has("a")) x -= 1;
-  if (keys.has("ArrowRight") || keys.has("d")) x += 1;
-  if (keys.has("ArrowUp") || keys.has("w")) y -= 1;
-  if (keys.has("ArrowDown") || keys.has("s")) y += 1;
+  if (keys.has("ArrowLeft") || keys.has("KeyA")) x -= 1;
+  if (keys.has("ArrowRight") || keys.has("KeyD")) x += 1;
+  if (keys.has("ArrowUp") || keys.has("KeyW")) y -= 1;
+  if (keys.has("ArrowDown") || keys.has("KeyS")) y += 1;
   const length = Math.hypot(x, y);
   return length > 1 ? { x: x / length, y: y / length } : { x, y };
 }
@@ -642,8 +729,9 @@ function update(dt) {
 
 function updateTeams(dt) {
   const vector = inputVector();
-  const moving = Math.hypot(vector.x, vector.y) > 0.08;
   updateTeamLeader(game.player, vector, dt);
+  const playerLeader = game.player.squad[0];
+  const moving = playerLeader ? Math.hypot(playerLeader.vx, playerLeader.vy) > 10 : false;
 
   game.teams.forEach((team) => {
     if (!team.alive) return;
@@ -661,8 +749,7 @@ function updateTeams(dt) {
 function updateTeamLeader(team, vector, dt) {
   const leader = team.squad[0];
   if (!leader) return;
-  leader.x = clamp(leader.x + vector.x * leader.speed * dt, 24, game.world.width - 24);
-  leader.y = clamp(leader.y + vector.y * leader.speed * dt, 24, game.world.height - 24);
+  moveUnitSmooth(leader, vector, dt, 11, 13);
 }
 
 function updateBot(team, dt) {
@@ -678,7 +765,12 @@ function updateBot(team, dt) {
   const length = Math.hypot(dx, dy) || 1;
   const cautious = team.target.squad && team.target.squad.length > team.squad.length + 1;
   const dir = cautious ? -1 : 1;
-  updateTeamLeader(team, { x: (dx / length) * dir, y: (dy / length) * dir }, dt);
+  const avoid = botAvoidanceVector(leader);
+  const intent = normalizeVector({
+    x: (dx / length) * dir + avoid.x,
+    y: (dy / length) * dir + avoid.y
+  });
+  updateTeamLeader(team, intent, dt);
 }
 
 function pickBotTarget(team) {
@@ -695,15 +787,136 @@ function followSquad(team, dt) {
   for (let i = 1; i < team.squad.length; i++) {
     const unit = team.squad[i];
     const target = team.squad[i - 1];
-    const desired = 36;
+    const desired = 34 + unit.radius * 0.25;
     const dx = target.x - unit.x;
     const dy = target.y - unit.y;
     const length = Math.hypot(dx, dy) || 1;
+    let intent = { x: 0, y: 0 };
     if (length > desired) {
-      unit.x += (dx / length) * unit.speed * 1.15 * dt;
-      unit.y += (dy / length) * unit.speed * 1.15 * dt;
+      const pull = clamp((length - desired) / desired, 0, 1);
+      intent = { x: (dx / length) * pull, y: (dy / length) * pull };
+    }
+    moveUnitSmooth(unit, intent, dt, 9, 14, 1.12);
+  }
+  separateSquad(team, dt);
+}
+
+function normalizeVector(vector) {
+  const length = Math.hypot(vector.x, vector.y);
+  if (length <= 0.0001) return { x: 0, y: 0 };
+  return { x: vector.x / length, y: vector.y / length };
+}
+
+function moveUnitSmooth(unit, vector, dt, acceleration = 10, braking = 12, speedScale = 1) {
+  const inputLength = Math.min(1, Math.hypot(vector.x, vector.y));
+  const direction = inputLength > 0.001 ? normalizeVector(vector) : { x: 0, y: 0 };
+  const targetVx = direction.x * unit.speed * speedScale * inputLength;
+  const targetVy = direction.y * unit.speed * speedScale * inputLength;
+  const rate = inputLength > 0.001 ? acceleration : braking;
+  const blend = 1 - Math.exp(-rate * dt);
+
+  unit.vx += (targetVx - unit.vx) * blend;
+  unit.vy += (targetVy - unit.vy) * blend;
+  unit.x += unit.vx * dt;
+  unit.y += unit.vy * dt;
+  keepInsideWorld(unit);
+
+  const velocity = Math.hypot(unit.vx, unit.vy);
+  if (velocity > 6) {
+    const targetAngle = Math.atan2(unit.vx, unit.vy);
+    unit.faceAngle = lerpAngle(unit.faceAngle, targetAngle, 1 - Math.exp(-12 * dt));
+    unit.walkPhase += velocity * dt * 0.055;
+  }
+}
+
+function keepInsideWorld(unit) {
+  const min = unit.radius + 7;
+  const maxX = game.world.width - min;
+  const maxY = game.world.height - min;
+  if (unit.x < min) {
+    unit.x = min;
+    unit.vx = Math.max(0, unit.vx);
+  }
+  if (unit.x > maxX) {
+    unit.x = maxX;
+    unit.vx = Math.min(0, unit.vx);
+  }
+  if (unit.y < min) {
+    unit.y = min;
+    unit.vy = Math.max(0, unit.vy);
+  }
+  if (unit.y > maxY) {
+    unit.y = maxY;
+    unit.vy = Math.min(0, unit.vy);
+  }
+}
+
+function lerpAngle(current, target, amount) {
+  let diff = ((target - current + Math.PI) % (Math.PI * 2)) - Math.PI;
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  return current + diff * amount;
+}
+
+function separateSquad(team, dt) {
+  for (let i = 0; i < team.squad.length; i++) {
+    for (let j = i + 1; j < team.squad.length; j++) {
+      const a = team.squad[i];
+      const b = team.squad[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const minDistance = a.radius + b.radius + 5;
+      if (length >= minDistance) continue;
+      const push = (minDistance - length) * 0.5 * Math.min(1, dt * 18);
+      const nx = dx / length;
+      const ny = dy / length;
+      if (i !== 0) {
+        a.x -= nx * push;
+        a.y -= ny * push;
+      }
+      b.x += nx * push;
+      b.y += ny * push;
+      keepInsideWorld(a);
+      keepInsideWorld(b);
     }
   }
+}
+
+function botAvoidanceVector(unit) {
+  const avoid = { x: 0, y: 0 };
+  const edge = 105;
+  if (unit.x < edge) avoid.x += (edge - unit.x) / edge;
+  if (unit.x > game.world.width - edge) avoid.x -= (unit.x - (game.world.width - edge)) / edge;
+  if (unit.y < edge) avoid.y += (edge - unit.y) / edge;
+  if (unit.y > game.world.height - edge) avoid.y -= (unit.y - (game.world.height - edge)) / edge;
+
+  game.obstacles.forEach((obstacle) => {
+    const left = obstacle.x - obstacle.w / 2;
+    const right = obstacle.x + obstacle.w / 2;
+    const top = obstacle.y - obstacle.h / 2;
+    const bottom = obstacle.y + obstacle.h / 2;
+    const closestX = clamp(unit.x, left, right);
+    const closestY = clamp(unit.y, top, bottom);
+    const dx = unit.x - closestX;
+    const dy = unit.y - closestY;
+    const distance = Math.hypot(dx, dy);
+    if (distance <= 0.001 && unit.x > left && unit.x < right && unit.y > top && unit.y < bottom) {
+      const exits = [
+        { x: -1, y: 0, d: unit.x - left },
+        { x: 1, y: 0, d: right - unit.x },
+        { x: 0, y: -1, d: unit.y - top },
+        { x: 0, y: 1, d: bottom - unit.y }
+      ].sort((a, b) => a.d - b.d)[0];
+      avoid.x += exits.x * 1.8;
+      avoid.y += exits.y * 1.8;
+    } else if (distance > 0.001 && distance < 96) {
+      const force = (96 - distance) / 96;
+      avoid.x += (dx / distance) * force * 1.4;
+      avoid.y += (dy / distance) * force * 1.4;
+    }
+  });
+
+  return avoid;
 }
 
 function updateUnitCombat(team, unit, moving, dt) {
@@ -873,8 +1086,11 @@ function draw() {
 function syncScene3D() {
   const aliveObjects = new Set();
   const leader = game.player.squad[0] || game.player;
-  const camX = to3X(leader.x);
-  const camZ = to3Z(leader.y);
+  const cameraBlend = 0.08;
+  game.camera.x += (leader.x - game.camera.x) * cameraBlend;
+  game.camera.y += (leader.y - game.camera.y) * cameraBlend;
+  const camX = to3X(game.camera.x);
+  const camZ = to3Z(game.camera.y);
   camera3D.position.set(camX, 520, camZ + 560);
   camera3D.lookAt(camX, 20, camZ - 110);
 
@@ -923,13 +1139,14 @@ function syncScene3D() {
         dynamicGroup.add(mesh);
       }
       mesh.position.set(to3X(unit.x), 0, to3Z(unit.y));
-      mesh.rotation.y = 0;
+      mesh.rotation.y = unit.faceAngle;
       if (mesh.userData.body) {
-        const walk = Math.sin(performance.now() * 0.01 + unit.x * 0.02 + unit.y * 0.02);
-        mesh.userData.body.rotation.z = walk * 0.045;
+        const speedRatio = clamp(Math.hypot(unit.vx, unit.vy) / unit.speed, 0, 1);
+        const walk = Math.sin(unit.walkPhase);
+        mesh.userData.body.rotation.z = walk * 0.045 * speedRatio;
         if (mesh.userData.limbs) {
           mesh.userData.limbs.forEach((limb, index) => {
-            limb.rotation.x = walk * (index % 2 === 0 ? 0.22 : -0.22);
+            limb.rotation.x = walk * (index % 2 === 0 ? 0.34 : -0.34) * speedRatio;
           });
         }
       }
@@ -1262,8 +1479,13 @@ ui.joystick.addEventListener("pointermove", (event) => {
 ui.joystick.addEventListener("pointerup", resetJoystick);
 ui.joystick.addEventListener("pointercancel", resetJoystick);
 
-window.addEventListener("keydown", (event) => keys.add(event.key.toLowerCase()));
-window.addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
+window.addEventListener("keydown", (event) => {
+  if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"].includes(event.code)) {
+    event.preventDefault();
+    keys.add(event.code);
+  }
+});
+window.addEventListener("keyup", (event) => keys.delete(event.code));
 window.addEventListener("resize", resizeCanvas);
 
 renderMenu();

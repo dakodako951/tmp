@@ -5,9 +5,9 @@ Hero Rush is a browser-based 3D arena game about collecting a squad, opening che
 ## Features
 
 - 3D arena rendered with Three.js.
-- Six hero classes with portraits, roles and different combat stats.
+- Six hero classes with portraits, roles, unique 3D looks and different combat stats.
 - Squad growth through pickups and chest rewards.
-- Bot opponents, monsters, boss enemy, coins, crystals and upgrades.
+- Smooth squad movement, camera follow, bot avoidance, monsters, boss enemy, coins, crystals and upgrades.
 - Touch joystick for mobile and keyboard controls for desktop.
 - Local save for coins and purchased upgrades through `localStorage`.
 

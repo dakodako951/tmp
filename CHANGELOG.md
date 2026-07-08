@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## [v1.1.0] - 2026-07-08
+
+### Added
+
+- Unique 3D visual details for every hero role.
+- Per-unit facing direction and walking animation based on movement speed.
+- Smooth acceleration, braking and squad follow movement.
+- Bot avoidance behavior around arena edges and obstacles.
+- Smoothed camera follow for a cleaner in-match feel.
+
+### Changed
+
+- Updated keyboard handling to use physical WASD key codes and prevent page-level movement conflicts.
+- Refreshed desktop and mobile 3D verification screenshots.
+- Updated README feature list to describe the new movement and hero model improvements.
+
 ## [v1.0.0] - 2026-07-08
 
 ### Added
