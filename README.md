@@ -5,11 +5,12 @@ Hero Rush is a browser-based 3D arena game about collecting a squad, opening che
 ## Features
 
 - 3D arena rendered with Three.js.
+- Branded SVG logo on the main menu.
 - Six hero classes with portraits, roles, unique 3D looks and different combat stats.
 - Account registration and login with server-side progress storage.
 - Online quick match, room creation and room-code join flow through WebSocket rooms.
 - Squad growth through pickups and chest rewards.
-- Smooth squad movement, camera follow, bot avoidance, monsters, boss enemy, coins, crystals and upgrades.
+- Smooth squad movement, circular follow formation, camera follow, bot avoidance, monsters, boss enemy, coins, crystals and upgrades.
 - Touch joystick for mobile and keyboard controls for desktop.
 - Local fallback save through `localStorage` when the server is unavailable.
 
@@ -48,6 +49,7 @@ index.html              Main HTML screen layout
 styles.css              Responsive auth, menu, HUD and game UI styles
 game.js                 Game loop, 3D scene, auth, online state and progression logic
 dev-server.js           Static server, API routes, SQLite storage and WebSocket rooms
+assets/                 UI assets, including the Hero Rush logo
 check-3d.js             Playwright smoke check for desktop and mobile 3D gameplay
 check-auth.js           Playwright auth-to-game smoke check
 check-online.js         Playwright online quick-match smoke check

@@ -994,19 +994,42 @@ function pickBotTarget(team) {
 }
 
 function followSquad(team, dt) {
+  const leader = team.squad[0];
+  if (!leader) return;
+  const followers = team.squad.length - 1;
+  if (followers <= 0) return;
+
+  const speed = Math.hypot(leader.vx, leader.vy);
+  const targetFormationAngle = speed > 8 ? Math.atan2(leader.vy, leader.vx) : (team.formationAngle ?? 0);
+  team.formationAngle = lerpAngle(team.formationAngle ?? targetFormationAngle, targetFormationAngle, 1 - Math.exp(-8 * dt));
+
+  const biggestRadius = team.squad.reduce((max, unit) => Math.max(max, unit.radius), 0);
+  const spacing = biggestRadius * 2 + 18;
+  const circleRadius = Math.max(48, (followers * spacing) / (Math.PI * 2));
+
   for (let i = 1; i < team.squad.length; i++) {
     const unit = team.squad[i];
-    const target = team.squad[i - 1];
-    const desired = 34 + unit.radius * 0.25;
-    const dx = target.x - unit.x;
-    const dy = target.y - unit.y;
-    const length = Math.hypot(dx, dy) || 1;
+    const angle = team.formationAngle - Math.PI / 2 + ((i - 1) / followers) * Math.PI * 2;
+    const slot = {
+      x: leader.x + Math.cos(angle) * circleRadius,
+      y: leader.y + Math.sin(angle) * circleRadius
+    };
+    const dx = slot.x - unit.x;
+    const dy = slot.y - unit.y;
+    const length = Math.hypot(dx, dy);
+    const avoid = botAvoidanceVector(unit);
     let intent = { x: 0, y: 0 };
-    if (length > desired) {
-      const pull = clamp((length - desired) / desired, 0, 1);
-      intent = { x: (dx / length) * pull, y: (dy / length) * pull };
+    if (length > 3) {
+      const pull = clamp(length / circleRadius, 0.12, 1);
+      intent = {
+        x: (dx / (length || 1)) * pull + avoid.x * 0.55,
+        y: (dy / (length || 1)) * pull + avoid.y * 0.55
+      };
+    } else if (Math.hypot(avoid.x, avoid.y) > 0.01) {
+      intent = { x: avoid.x * 0.4, y: avoid.y * 0.4 };
     }
-    moveUnitSmooth(unit, intent, dt, 9, 14, 1.12);
+    const catchup = length > circleRadius * 1.6 ? 1.35 : 1.08;
+    moveUnitSmooth(unit, intent, dt, 10, 16, catchup);
   }
   separateSquad(team, dt);
 }

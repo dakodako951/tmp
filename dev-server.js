@@ -19,6 +19,7 @@ const types = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
+  ".svg": "image/svg+xml",
   ".glb": "model/gltf-binary"
 };
 

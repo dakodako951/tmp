@@ -18,18 +18,18 @@ const { chromium } = require("playwright");
   await page.waitForSelector("#menu.active", { timeout: 5000 });
   await page.waitForTimeout(500);
   const info = await page.evaluate(() => {
-    const brand = document.querySelector(".menu-brand").getBoundingClientRect();
+    const logo = document.querySelector(".main-logo").getBoundingClientRect();
     const roster = document.querySelector(".roster-panel").getBoundingClientRect();
     const cards = [...document.querySelectorAll(".hero-card")].filter((card) => {
       const rect = card.getBoundingClientRect();
       return rect.top >= 0 && rect.bottom <= innerHeight;
     }).length;
-    return { brandTop: brand.top, rosterTop: roster.top, visibleHeroCards: cards };
+    return { logoTop: logo.top, logoWidth: logo.width, rosterTop: roster.top, visibleHeroCards: cards };
   });
   await page.screenshot({ path: "menu-layout-check.png", fullPage: false });
   await browser.close();
   console.log(JSON.stringify({ info, errors }, null, 2));
-  if (errors.length || info.visibleHeroCards < 3 || info.brandTop > 40) process.exit(1);
+  if (errors.length || info.visibleHeroCards < 3 || info.logoTop > 40 || info.logoWidth < 360) process.exit(1);
 })().catch((error) => {
   console.error(error);
   process.exit(1);

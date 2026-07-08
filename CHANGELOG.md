@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [v1.3.0] - 2026-07-08
+
+### Added
+
+- Branded SVG logo asset for the main menu.
+- SVG static asset serving in the local Node.js server.
+- Circle-style squad follow formation around the leader.
+
+### Changed
+
+- Reworked the main menu hero area to use the new logo instead of text headline copy.
+- Updated menu layout smoke check to validate logo placement and size.
+- Refreshed desktop, mobile and menu verification screenshots.
+
 ## [v1.2.1] - 2026-07-08
 
 ### Changed
