@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here.
 
+## [v1.2.0] - 2026-07-08
+
+### Added
+
+- Account registration, login and current-user restore flow.
+- Server-side progress storage with SQLite for coins, upgrades, selected hero, wins and matches.
+- Online quick match, room creation and room-code join flow.
+- WebSocket room state sync for remote players.
+- Auth, online and menu Playwright smoke checks.
+- Verification screenshots for auth, online and menu layout checks.
+
+### Changed
+
+- Expanded the local Node.js server from static-only serving to API, SQLite and WebSocket support.
+- Updated menu layout with account and online controls.
+- Updated README with install, server, verification and online feature details.
+- Added `hero-rush.db` to `.gitignore` because it is a local runtime database.
+
 ## [v1.1.0] - 2026-07-08
 
 ### Added

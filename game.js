@@ -8,6 +8,7 @@ let effectGroup;
 let textureLoader;
 
 const screens = {
+  auth: document.getElementById("auth"),
   menu: document.getElementById("menu"),
   game: document.getElementById("game"),
   results: document.getElementById("results")
@@ -29,7 +30,24 @@ const ui = {
   rewardLine: document.getElementById("rewardLine"),
   scoreboard: document.getElementById("scoreboard"),
   joystick: document.getElementById("joystick"),
-  stick: document.getElementById("stick")
+  stick: document.getElementById("stick"),
+  authForm: document.getElementById("authForm"),
+  loginTab: document.getElementById("loginTab"),
+  registerTab: document.getElementById("registerTab"),
+  nickField: document.getElementById("nickField"),
+  authNick: document.getElementById("authNick"),
+  authEmail: document.getElementById("authEmail"),
+  authPassword: document.getElementById("authPassword"),
+  authError: document.getElementById("authError"),
+  authSubmit: document.getElementById("authSubmit"),
+  logout: document.getElementById("logoutButton"),
+  accountName: document.getElementById("accountName"),
+  accountWins: document.getElementById("accountWins"),
+  quickMatch: document.getElementById("quickMatchButton"),
+  createRoom: document.getElementById("createRoomButton"),
+  joinRoom: document.getElementById("joinRoomButton"),
+  roomCode: document.getElementById("roomCodeInput"),
+  onlineStatus: document.getElementById("onlineStatus")
 };
 
 const heroes = [
@@ -70,6 +88,13 @@ let keys = new Set();
 let joystick = { active: false, x: 0, y: 0, pointer: null };
 const sceneObjects = new WeakMap();
 const portraitTextures = new Map();
+let authMode = "login";
+let authToken = localStorage.getItem("hero-rush-token") || "";
+let currentUser = null;
+let onlineSocket = null;
+let onlinePlayerId = "";
+let onlineMode = false;
+let remoteTeams = new Map();
 
 function ensureThree() {
   if (renderer || !window.THREE) return;
@@ -130,6 +155,97 @@ function makeMat(color, roughness = 0.72, metalness = 0.05) {
 
 function persist() {
   localStorage.setItem("crystal-squad-save", JSON.stringify(save));
+  syncProgress();
+}
+
+async function api(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+  const response = await fetch(path, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Ошибка сервера.");
+  return data;
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  ui.loginTab.classList.toggle("active", mode === "login");
+  ui.registerTab.classList.toggle("active", mode === "register");
+  ui.nickField.style.display = mode === "register" ? "grid" : "none";
+  ui.authSubmit.textContent = mode === "register" ? "Создать аккаунт" : "Войти";
+  ui.authError.textContent = "";
+}
+
+function applyUser(user) {
+  currentUser = user;
+  save.coins = user.coins || 0;
+  save.upgrades = user.upgrades || {};
+  selectedHero = user.selectedHero || selectedHero;
+  ui.accountName.textContent = user.nick || "Игрок";
+  ui.accountWins.textContent = user.wins || 0;
+  renderMenu();
+}
+
+async function bootAuth() {
+  setAuthMode("login");
+  if (!authToken) return showScreen("auth");
+  try {
+    const data = await api("/api/me");
+    applyUser(data.user);
+    showScreen("menu");
+  } catch {
+    authToken = "";
+    localStorage.removeItem("hero-rush-token");
+    showScreen("auth");
+  }
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  try {
+    ui.authError.textContent = "";
+    const body = { email: ui.authEmail.value, password: ui.authPassword.value };
+    if (authMode === "register") body.nick = ui.authNick.value;
+    const data = await api(authMode === "register" ? "/api/register" : "/api/login", {
+      method: "POST",
+      body: JSON.stringify(body)
+    });
+    authToken = data.token;
+    localStorage.setItem("hero-rush-token", authToken);
+    applyUser(data.user);
+    showScreen("menu");
+  } catch (error) {
+    ui.authError.textContent = error.message;
+  }
+}
+
+async function syncProgress(extra = {}) {
+  if (!authToken || !currentUser) return;
+  try {
+    const data = await api("/api/progress", {
+      method: "POST",
+      body: JSON.stringify({
+        coins: save.coins,
+        upgrades: save.upgrades,
+        selectedHero,
+        wins: currentUser.wins || 0,
+        matches: currentUser.matches || 0,
+        ...extra
+      })
+    });
+    currentUser = data.user;
+    ui.accountWins.textContent = currentUser.wins || 0;
+  } catch {
+    // Keep local progress if the server is temporarily unavailable.
+  }
+}
+
+function logout() {
+  disconnectOnline();
+  authToken = "";
+  currentUser = null;
+  localStorage.removeItem("hero-rush-token");
+  showScreen("auth");
 }
 
 function showScreen(name) {
@@ -183,6 +299,10 @@ function renderMenu() {
     button.addEventListener("click", () => {
       selectedHero = button.dataset.hero;
       renderMenu();
+      syncProgress({ selectedHero });
+      if (onlineSocket && onlineSocket.readyState === WebSocket.OPEN) {
+        onlineSocket.send(JSON.stringify({ type: "hero", hero: selectedHero }));
+      }
     });
   });
 
@@ -234,7 +354,7 @@ function createGame() {
   const chests = spawnChests(world);
   const pickups = spawnPickups(world);
   const player = {
-    id: "Ты",
+    id: currentUser ? currentUser.nick : "Ты",
     isPlayer: true,
     x: world.width / 2,
     y: world.height / 2,
@@ -679,12 +799,100 @@ function makeMonsterMesh(monster) {
 }
 
 function startMatch() {
+  onlineMode = false;
+  disconnectOnline();
   ensureThree();
   game = createGame();
   buildArena3D();
   showScreen("game");
   resizeCanvas();
   requestAnimationFrame(loop);
+}
+
+async function startOnlineMatch(roomCode) {
+  onlineMode = true;
+  ensureThree();
+  game = createGame();
+  buildArena3D();
+  showScreen("game");
+  resizeCanvas();
+  connectOnline(roomCode);
+  requestAnimationFrame(loop);
+}
+
+function connectOnline(roomCode) {
+  disconnectOnline();
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const params = new URLSearchParams({ token: authToken, room: roomCode });
+  onlineSocket = new WebSocket(`${protocol}//${location.host}/ws?${params.toString()}`);
+  onlineSocket.addEventListener("open", () => {
+    ui.onlineStatus.textContent = `Комната ${roomCode}`;
+    onlineSocket.send(JSON.stringify({ type: "hero", hero: selectedHero }));
+  });
+  onlineSocket.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === "welcome") {
+      onlinePlayerId = message.playerId;
+      ui.onlineStatus.textContent = `Комната ${message.room}`;
+    }
+    if (message.type === "state") applyOnlineState(message);
+  });
+  onlineSocket.addEventListener("close", () => {
+    ui.onlineStatus.textContent = "Оффлайн";
+  });
+}
+
+function disconnectOnline() {
+  if (onlineSocket) onlineSocket.close();
+  onlineSocket = null;
+  onlinePlayerId = "";
+  remoteTeams.clear();
+}
+
+function sendOnlineInput() {
+  if (!onlineSocket || onlineSocket.readyState !== WebSocket.OPEN) return;
+  const vector = inputVector();
+  onlineSocket.send(JSON.stringify({ type: "input", x: vector.x, y: vector.y }));
+}
+
+function applyOnlineState(state) {
+  if (!game) return;
+  const seen = new Set();
+  state.players.forEach((player) => {
+    if (player.id === onlinePlayerId) return;
+    seen.add(player.id);
+    let team = remoteTeams.get(player.id);
+    if (!team) {
+      const hero = getHero(player.hero);
+      team = {
+        id: player.nick,
+        isPlayer: false,
+        isRemote: true,
+        x: player.x,
+        y: player.y,
+        gems: 0,
+        coins: 0,
+        alive: true,
+        squad: [makeUnit(hero.id, player.x, player.y, `remote-${player.id}`)]
+      };
+      remoteTeams.set(player.id, team);
+      game.teams.push(team);
+    }
+    team.id = player.nick;
+    team.alive = player.connected !== false;
+    const unit = team.squad[0];
+    if (unit) {
+      unit.x += (player.x - unit.x) * 0.35;
+      unit.y += (player.y - unit.y) * 0.35;
+      team.x = unit.x;
+      team.y = unit.y;
+    }
+  });
+  for (const [id, team] of remoteTeams) {
+    if (seen.has(id)) continue;
+    game.teams = game.teams.filter((item) => item !== team);
+    remoteTeams.delete(id);
+  }
 }
 
 function resizeCanvas() {
@@ -719,6 +927,7 @@ function update(dt) {
   game.timeLeft -= dt;
   if (game.timeLeft <= 0 || !game.player.alive) return endMatch();
 
+  if (onlineMode) sendOnlineInput();
   updateTeams(dt);
   updateMonsters(dt);
   collectPickups();
@@ -735,6 +944,7 @@ function updateTeams(dt) {
 
   game.teams.forEach((team) => {
     if (!team.alive) return;
+    if (team.isRemote) return;
     if (!team.isPlayer) updateBot(team, dt);
     followSquad(team, dt);
     team.squad.forEach((unit) => updateUnitCombat(team, unit, moving && team.isPlayer, dt));
@@ -1062,6 +1272,10 @@ function endMatch() {
   const place = standings.indexOf(game.player) + 1;
   const reward = Math.max(12, game.player.coins + (standings.length - place + 1) * 8);
   save.coins += reward;
+  if (currentUser) {
+    currentUser.matches = (currentUser.matches || 0) + 1;
+    if (place === 1) currentUser.wins = (currentUser.wins || 0) + 1;
+  }
   persist();
 
   ui.resultTitle.textContent = place === 1 ? "Победа!" : `Место ${place}`;
@@ -1458,6 +1672,33 @@ function resetJoystick() {
 ui.play.addEventListener("click", startMatch);
 ui.again.addEventListener("click", startMatch);
 ui.menu.addEventListener("click", () => showScreen("menu"));
+ui.loginTab.addEventListener("click", () => setAuthMode("login"));
+ui.registerTab.addEventListener("click", () => setAuthMode("register"));
+ui.authForm.addEventListener("submit", submitAuth);
+ui.logout.addEventListener("click", logout);
+ui.createRoom.addEventListener("click", async () => {
+  try {
+    const data = await api("/api/rooms", { method: "POST", body: "{}" });
+    ui.roomCode.value = data.room;
+    await startOnlineMatch(data.room);
+  } catch (error) {
+    ui.onlineStatus.textContent = error.message;
+  }
+});
+ui.quickMatch.addEventListener("click", async () => {
+  try {
+    const data = await api("/api/matchmake", { method: "POST", body: "{}" });
+    ui.roomCode.value = data.room;
+    await startOnlineMatch(data.room);
+  } catch (error) {
+    ui.onlineStatus.textContent = error.message;
+  }
+});
+ui.joinRoom.addEventListener("click", async () => {
+  const room = ui.roomCode.value.trim();
+  if (!room) return ui.onlineStatus.textContent = "Введите код комнаты.";
+  await startOnlineMatch(room);
+});
 ui.pause.addEventListener("click", () => {
   if (!game) return;
   game.paused = !game.paused;
@@ -1480,6 +1721,7 @@ ui.joystick.addEventListener("pointerup", resetJoystick);
 ui.joystick.addEventListener("pointercancel", resetJoystick);
 
 window.addEventListener("keydown", (event) => {
+  if (event.target && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
   if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"].includes(event.code)) {
     event.preventDefault();
     keys.add(event.code);
@@ -1489,4 +1731,4 @@ window.addEventListener("keyup", (event) => keys.delete(event.code));
 window.addEventListener("resize", resizeCanvas);
 
 renderMenu();
-showScreen("menu");
+bootAuth();

@@ -9,15 +9,64 @@
   </head>
   <body>
     <main id="app">
-      <section id="menu" class="screen active">
-        <div class="hero">
+      <section id="auth" class="screen active">
+        <form id="authForm" class="auth-card">
           <div class="brand">
             <span class="logo-mark"></span>
             <span>Hero Rush</span>
           </div>
           <h1>Hero Rush</h1>
+          <div class="auth-tabs">
+            <button id="loginTab" class="auth-tab active" type="button">Вход</button>
+            <button id="registerTab" class="auth-tab" type="button">Регистрация</button>
+          </div>
+          <label id="nickField">
+            <span>Ник</span>
+            <input id="authNick" autocomplete="nickname" maxlength="18">
+          </label>
+          <label>
+            <span>Email</span>
+            <input id="authEmail" type="email" autocomplete="email" required>
+          </label>
+          <label>
+            <span>Пароль</span>
+            <input id="authPassword" type="password" autocomplete="current-password" minlength="6" required>
+          </label>
+          <div id="authError" class="auth-error"></div>
+          <button id="authSubmit" class="primary" type="submit">Войти</button>
+        </form>
+      </section>
+
+      <section id="menu" class="screen">
+        <div class="menu-brand">
+          <div class="brand">
+            <span class="logo-mark"></span>
+            <span>Hero Rush</span>
+          </div>
+        </div>
+        <div class="hero">
+          <h1>Hero Rush</h1>
           <p>Собирай отряд, открывай сундуки, побеждай ботов и уноси больше кристаллов до конца матча.</p>
           <button id="playButton" class="primary">Играть</button>
+        </div>
+        <div class="panel account-panel">
+          <div class="panel-head">
+            <h2>Онлайн</h2>
+            <button id="logoutButton" class="secondary">Выйти</button>
+          </div>
+          <div class="account-line">
+            <span id="accountName">Игрок</span>
+            <span><span id="accountWins">0</span> побед</span>
+          </div>
+          <div class="online-actions">
+            <button id="quickMatchButton" class="primary">Быстрый матч</button>
+            <button id="createRoomButton" class="secondary">Создать комнату</button>
+          </div>
+          <div class="join-row">
+            <input id="roomCodeInput" placeholder="Код комнаты">
+            <button id="joinRoomButton" class="secondary">Войти</button>
+          </div>
+          <div id="onlineStatus" class="online-status">Оффлайн</div>
         </div>
         <div class="panel roster-panel">
           <h2>Выбор героя</h2>

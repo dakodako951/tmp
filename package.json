@@ -1,14 +1,20 @@
 {
   "name": "hero-rush",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Browser-based 3D arena squad game.",
   "private": true,
   "scripts": {
     "start": "node dev-server.js",
-    "check": "node --check game.js && node --check dev-server.js && node --check check-3d.js",
-    "test:3d": "node check-3d.js"
+    "check": "node --check game.js && node --check dev-server.js && node --check check-3d.js && node --check check-auth.js && node --check check-online.js && node --check check-menu.js",
+    "test:3d": "node check-3d.js",
+    "test:auth": "node check-auth.js",
+    "test:menu": "node check-menu.js",
+    "test:online": "node check-online.js"
   },
   "devDependencies": {
     "playwright": "^1.45.0"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
   }
 }

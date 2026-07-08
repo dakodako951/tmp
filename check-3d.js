@@ -17,6 +17,12 @@ const { chromium } = require("playwright");
     page.on("pageerror", (error) => errors.push(error.message));
 
     await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
+    await page.click("#registerTab");
+    await page.fill("#authNick", `ThreeD${viewport.label}`);
+    await page.fill("#authEmail", `3d-${viewport.label}-${Date.now()}@hero.local`);
+    await page.fill("#authPassword", "secret123");
+    await page.click("#authSubmit");
+    await page.waitForSelector("#menu.active", { timeout: 5000 });
     await page.click("#playButton");
     await page.waitForTimeout(2500);
 
