@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [v1.2.1] - 2026-07-08
+
+### Changed
+
+- Adjusted the menu grid so the online account panel sits below the hero roster area.
+- Stabilized the shop panel height, spacing and title alignment.
+- Refreshed the menu layout verification screenshot.
+
 ## [v1.2.0] - 2026-07-08
 
 ### Added
