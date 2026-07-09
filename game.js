@@ -27,6 +27,8 @@ const ui = {
   shop: document.getElementById("shopItems"),
   wallet: document.getElementById("walletCoins"),
   resultTitle: document.getElementById("resultTitle"),
+  victoryLogo: document.getElementById("victoryLogo"),
+  placeLogo: document.getElementById("placeLogo"),
   rewardLine: document.getElementById("rewardLine"),
   scoreboard: document.getElementById("scoreboard"),
   joystick: document.getElementById("joystick"),
@@ -95,6 +97,20 @@ let onlineSocket = null;
 let onlinePlayerId = "";
 let onlineMode = false;
 let remoteTeams = new Map();
+const resultPlaceLogos = {
+  2: "assets/place-2-transparent.png",
+  3: "assets/place-3-transparent.png",
+  4: "assets/place-4-transparent.png",
+  5: "assets/place-5-transparent.png",
+  6: "assets/place-6-transparent.png",
+  7: "assets/place-7-transparent.png",
+  8: "assets/place-8-transparent.png"
+};
+
+ui.placeLogo.addEventListener("error", () => {
+  ui.placeLogo.hidden = true;
+  ui.resultTitle.hidden = false;
+});
 
 function ensureThree() {
   if (renderer || !window.THREE) return;
@@ -1300,9 +1316,22 @@ function endMatch() {
     if (place === 1) currentUser.wins = (currentUser.wins || 0) + 1;
   }
   persist();
+  const won = place === 1;
 
   ui.resultTitle.textContent = place === 1 ? "Победа!" : `Место ${place}`;
   ui.rewardLine.textContent = `Награда: ${reward} монет · собрано ${game.player.gems} кристаллов`;
+  ui.victoryLogo.hidden = !won;
+  ui.placeLogo.hidden = true;
+  ui.resultTitle.hidden = false;
+  if (won) {
+    ui.resultTitle.hidden = true;
+    ui.resultTitle.textContent = "";
+  } else if (resultPlaceLogos[place]) {
+    ui.placeLogo.src = resultPlaceLogos[place];
+    ui.placeLogo.alt = `${place} место`;
+    ui.placeLogo.hidden = false;
+    ui.resultTitle.hidden = true;
+  }
   ui.scoreboard.innerHTML = standings.map((team, index) => `
     <div class="score-row">
       <span>${index + 1}</span>

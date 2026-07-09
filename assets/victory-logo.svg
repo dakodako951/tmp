@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" role="img" aria-labelledby="title">
+  <title id="title">Победа</title>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff45a"/>
+      <stop offset="0.42" stop-color="#ffd322"/>
+      <stop offset="1" stop-color="#e38b00"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.22" stop-color="#fff" stop-opacity=".82"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="heavyShadow" x="-8%" y="-18%" width="116%" height="150%">
+      <feDropShadow dx="0" dy="20" stdDeviation="0" flood-color="#000" flood-opacity=".96"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#000" flood-opacity=".72"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="420" fill="none"/>
+  <g filter="url(#heavyShadow)">
+    <text x="600" y="275" text-anchor="middle" font-family="Arial Black, Impact, system-ui, sans-serif" font-size="255" font-weight="900" letter-spacing="-4" transform="rotate(-2 600 220)" stroke="#050505" stroke-width="36" paint-order="stroke" fill="url(#gold)">ПОБЕДА</text>
+  </g>
+  <g transform="rotate(-2 600 220)">
+    <path d="M113 87h198" stroke="url(#shine)" stroke-width="17" stroke-linecap="round"/>
+    <path d="M343 67c52-42 129-39 166 1" fill="none" stroke="url(#shine)" stroke-width="17" stroke-linecap="round"/>
+    <path d="M694 82h124" stroke="url(#shine)" stroke-width="17" stroke-linecap="round"/>
+    <path d="M1007 107h58" stroke="url(#shine)" stroke-width="17" stroke-linecap="round"/>
+  </g>
+  <g fill="url(#gold)" stroke="#050505" stroke-width="18" stroke-linejoin="round">
+    <path d="M77 278 103 330 162 340 119 378 128 435 77 407 26 435 35 378 -8 340 51 330z" transform="scale(.72) translate(50 -45)"/>
+    <path d="M77 278 103 330 162 340 119 378 128 435 77 407 26 435 35 378 -8 340 51 330z" transform="scale(.62) translate(1770 -210) rotate(12 77 350)"/>
+  </g>
+  <g fill="#fff8a7" opacity=".95">
+    <circle cx="91" cy="253" r="8"/>
+    <circle cx="1065" cy="93" r="9"/>
+  </g>
+</svg>

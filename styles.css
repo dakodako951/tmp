@@ -46,14 +46,20 @@ button {
 #menu {
   grid-template-columns: minmax(320px, 1.1fr) minmax(300px, 0.9fr);
   grid-template-rows: auto auto auto;
+  position: fixed;
+  inset: 0;
   align-content: start;
   gap: 14px;
-  min-height: 100dvh;
+  height: 100dvh;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: clamp(16px, 3vw, 34px);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: clamp(16px, 3vw, 34px) clamp(16px, 3vw, 34px) max(84px, env(safe-area-inset-bottom));
   background:
-    radial-gradient(circle at 20% 18%, rgba(255, 202, 58, 0.42), transparent 24%),
-    linear-gradient(135deg, #67c96f 0%, #56cfc5 48%, #f4cf58 100%);
+    linear-gradient(rgba(45, 154, 98, 0.16), rgba(20, 86, 73, 0.2)),
+    url("значки/фон.png") center / cover no-repeat;
 }
 
 #auth {
@@ -594,6 +600,29 @@ p {
 .results-card h1 {
   font-size: clamp(32px, 7vw, 56px);
   line-height: 0.98;
+}
+
+.victory-logo {
+  display: block;
+  width: min(100%, 620px);
+  max-height: clamp(120px, 28vh, 220px);
+  object-fit: contain;
+  margin: -8px auto 6px;
+  filter: drop-shadow(0 9px 0 rgba(23, 33, 43, 0.22));
+}
+
+.place-logo {
+  display: block;
+  width: min(100%, 460px);
+  max-height: clamp(150px, 32vh, 260px);
+  object-fit: contain;
+  margin: -8px auto 8px;
+  filter: drop-shadow(0 9px 0 rgba(23, 33, 43, 0.18));
+}
+
+.victory-logo[hidden],
+.place-logo[hidden] {
+  display: none;
 }
 
 .reward-line {

@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here.
 
+## [v1.4.0] - 2026-07-09
+
+### Added
+
+- Transparent raster Hero Rush logo for the main menu.
+- Illustrated menu background image.
+- Victory logo on the results screen.
+- Place-specific result images for second through eighth place.
+- Result and menu scroll verification screenshots.
+
+### Changed
+
+- Updated result screen rendering to show visual victory and placement assets.
+- Refined menu scrolling and background layout for the new art direction.
+- Refreshed desktop, mobile and menu verification screenshots.
+
 ## [v1.3.0] - 2026-07-08
 
 ### Added
