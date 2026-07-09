@@ -589,6 +589,18 @@ p {
   background: linear-gradient(135deg, #55c96d, #58d0d4 52%, #ffd35c);
 }
 
+#results.loss-bg {
+  background:
+    linear-gradient(rgba(8, 53, 145, 0.08), rgba(4, 20, 90, 0.14)),
+    url("значки/фон проигрыша.png") center / cover no-repeat;
+}
+
+#results.win-bg {
+  background:
+    linear-gradient(rgba(255, 208, 54, 0.08), rgba(77, 177, 95, 0.12)),
+    url("значки/фон победителя.png") center / cover no-repeat;
+}
+
 .results-card {
   width: min(560px, 100%);
   padding: 20px;

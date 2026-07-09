@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## [v1.5.0] - 2026-07-09
+
+### Added
+
+- Procedural menu music that starts after the first user interaction.
+- Separate illustrated result backgrounds for winning and losing placements.
+- Updated result background verification screenshots.
+- Black-outline preview for the victory logo asset.
+
+### Changed
+
+- Result screen now switches background art based on final placement.
+- Refreshed selected placement and victory artwork.
+- Refreshed desktop and mobile 3D verification screenshots.
+
 ## [v1.4.0] - 2026-07-09
 
 ### Added

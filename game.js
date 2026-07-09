@@ -97,6 +97,16 @@ let onlineSocket = null;
 let onlinePlayerId = "";
 let onlineMode = false;
 let remoteTeams = new Map();
+const menuMusic = {
+  context: null,
+  master: null,
+  timer: null,
+  nextLoopTime: 0,
+  unlocked: false,
+  playing: false,
+  bpm: 132,
+  loopBars: 16
+};
 const resultPlaceLogos = {
   2: "assets/place-2-transparent.png",
   3: "assets/place-3-transparent.png",
@@ -111,6 +121,180 @@ ui.placeLogo.addEventListener("error", () => {
   ui.placeLogo.hidden = true;
   ui.resultTitle.hidden = false;
 });
+
+function noteFrequency(note) {
+  const match = /^([A-G])(#?)(-?\d)$/.exec(note);
+  if (!match) return 440;
+  const semitones = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
+  const octave = Number(match[3]);
+  const offset = semitones[match[1]] + (match[2] ? 1 : 0) + (octave - 4) * 12;
+  return 440 * 2 ** (offset / 12);
+}
+
+function ensureMenuMusic() {
+  if (menuMusic.context || !window.AudioContext && !window.webkitAudioContext) return menuMusic.context;
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  const context = new AudioCtor();
+  const master = context.createGain();
+  const compressor = context.createDynamicsCompressor();
+  master.gain.value = 0.18;
+  compressor.threshold.value = -24;
+  compressor.knee.value = 18;
+  compressor.ratio.value = 3;
+  compressor.attack.value = 0.008;
+  compressor.release.value = 0.18;
+  master.connect(compressor);
+  compressor.connect(context.destination);
+  menuMusic.context = context;
+  menuMusic.master = master;
+  return context;
+}
+
+function makeTone(freq, time, duration, type, gain, options = {}) {
+  const context = menuMusic.context;
+  if (!context) return;
+  const osc = context.createOscillator();
+  const amp = context.createGain();
+  const filter = context.createBiquadFilter();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, time);
+  if (options.detune) osc.detune.setValueAtTime(options.detune, time);
+  filter.type = options.filterType || "lowpass";
+  filter.frequency.setValueAtTime(options.filter || 3600, time);
+  filter.Q.setValueAtTime(options.q || 0.6, time);
+  amp.gain.setValueAtTime(0.0001, time);
+  amp.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain), time + (options.attack || 0.008));
+  amp.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+  osc.connect(filter);
+  filter.connect(amp);
+  amp.connect(menuMusic.master);
+  osc.start(time);
+  osc.stop(time + duration + 0.04);
+}
+
+function pluck(note, beat, length = 0.42, gain = 0.08, kind = "marimba") {
+  const time = beatToTime(beat);
+  const freq = noteFrequency(note);
+  const tone = kind === "glock" ? "sine" : kind === "bass" ? "triangle" : "square";
+  const filter = kind === "glock" ? 5200 : kind === "bass" ? 900 : 2800;
+  const duration = length * beatSeconds();
+  makeTone(freq, time, duration, tone, gain, { filter, attack: 0.006 });
+  if (kind === "marimba" || kind === "xylo") {
+    makeTone(freq * 2.01, time + 0.004, duration * 0.55, "sine", gain * 0.32, { filter: 4600 });
+  }
+}
+
+function drum(beat, kind) {
+  const context = menuMusic.context;
+  if (!context) return;
+  const time = beatToTime(beat);
+  const noise = context.createBufferSource();
+  const buffer = context.createBuffer(1, context.sampleRate * 0.12, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const amp = context.createGain();
+  const filter = context.createBiquadFilter();
+  filter.type = kind === "kick" ? "lowpass" : "bandpass";
+  filter.frequency.value = kind === "clap" ? 1500 : kind === "hat" ? 6200 : 120;
+  filter.Q.value = kind === "clap" ? 0.9 : 0.5;
+  amp.gain.setValueAtTime(kind === "kick" ? 0.055 : kind === "clap" ? 0.035 : 0.018, time);
+  amp.gain.exponentialRampToValueAtTime(0.0001, time + (kind === "clap" ? 0.12 : 0.055));
+  noise.buffer = buffer;
+  noise.connect(filter);
+  filter.connect(amp);
+  amp.connect(menuMusic.master);
+  noise.start(time);
+  noise.stop(time + 0.14);
+}
+
+function beatSeconds() {
+  return 60 / menuMusic.bpm;
+}
+
+function beatToTime(beat) {
+  return menuMusic.loopStart + beat * beatSeconds();
+}
+
+function scheduleMenuLoop(startTime) {
+  menuMusic.loopStart = startTime;
+  const melody = [
+    ["C5", 0], ["E5", 0.5], ["G5", 1], ["A5", 1.5], ["G5", 2.25], ["E5", 2.75], ["D5", 3.25],
+    ["E5", 4], ["G5", 4.5], ["C6", 5], ["B5", 5.5], ["A5", 6.25], ["G5", 6.75], ["E5", 7.25],
+    ["F5", 8], ["A5", 8.5], ["C6", 9], ["D6", 9.5], ["C6", 10.25], ["A5", 10.75], ["G5", 11.25],
+    ["E5", 12], ["G5", 12.5], ["A5", 13], ["G5", 13.75], ["E5", 14.5], ["C5", 15.25]
+  ];
+  const variation = melody.map(([note, beat]) => [note, beat + 16]);
+  const returnMelody = melody.map(([note, beat]) => [note, beat + 32]);
+  const sparkle = [
+    ["G6", 7.5], ["C7", 15.5], ["E6", 23.5], ["G6", 31.5], ["C7", 47.5], ["G6", 55.5], ["C7", 63.5]
+  ];
+  [...melody, ...variation, ...returnMelody].forEach(([note, beat], index) => {
+    pluck(note, beat, index % 4 === 0 ? 0.52 : 0.34, 0.065, index % 3 === 0 ? "xylo" : "marimba");
+  });
+  sparkle.forEach(([note, beat]) => pluck(note, beat, 0.65, 0.038, "glock"));
+
+  for (let bar = 0; bar < menuMusic.loopBars; bar++) {
+    const base = bar * 4;
+    const chord = bar % 4 === 0 ? ["C4", "E4", "G4"] : bar % 4 === 1 ? ["A3", "E4", "G4"] : bar % 4 === 2 ? ["F3", "C4", "A4"] : ["G3", "D4", "B4"];
+    chord.forEach((note, index) => pluck(note, base + index * 0.5, 0.25, 0.038, "marimba"));
+    pluck(chord[0], base, 0.9, 0.06, "bass");
+    pluck(chord[0], base + 2, 0.8, 0.045, "bass");
+    drum(base, "kick");
+    drum(base + 2, "kick");
+    drum(base + 1.5, "clap");
+    drum(base + 3.5, "clap");
+    for (let step = 0; step < 4; step++) drum(base + step + 0.75, "hat");
+  }
+
+  [8, 24, 40, 56].forEach((beat) => {
+    makeTone(noteFrequency("C4"), beatToTime(beat), beatSeconds() * 1.8, "sawtooth", 0.025, { filter: 1400, attack: 0.08 });
+    makeTone(noteFrequency("G4"), beatToTime(beat), beatSeconds() * 1.8, "sawtooth", 0.018, { filter: 1500, attack: 0.08, detune: 4 });
+  });
+}
+
+function startMenuMusic() {
+  const context = ensureMenuMusic();
+  if (!context || menuMusic.playing) return;
+  if (context.state === "suspended") context.resume();
+  menuMusic.playing = true;
+  menuMusic.master.gain.cancelScheduledValues(context.currentTime);
+  menuMusic.master.gain.setValueAtTime(0.0001, context.currentTime);
+  menuMusic.master.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.18);
+  menuMusic.nextLoopTime = context.currentTime + 0.06;
+  scheduleMenuLoop(menuMusic.nextLoopTime);
+  menuMusic.nextLoopTime += menuMusic.loopBars * 4 * beatSeconds();
+  menuMusic.timer = window.setInterval(() => {
+    if (!menuMusic.playing || !menuMusic.context) return;
+    if (menuMusic.nextLoopTime - menuMusic.context.currentTime < 4) {
+      scheduleMenuLoop(menuMusic.nextLoopTime);
+      menuMusic.nextLoopTime += menuMusic.loopBars * 4 * beatSeconds();
+    }
+  }, 1000);
+}
+
+function stopMenuMusic() {
+  if (!menuMusic.playing) return;
+  menuMusic.playing = false;
+  if (menuMusic.timer) {
+    clearInterval(menuMusic.timer);
+    menuMusic.timer = null;
+  }
+  if (menuMusic.master && menuMusic.context) {
+    menuMusic.master.gain.cancelScheduledValues(menuMusic.context.currentTime);
+    menuMusic.master.gain.setTargetAtTime(0.0001, menuMusic.context.currentTime, 0.08);
+  }
+}
+
+function unlockMenuMusic() {
+  menuMusic.unlocked = true;
+  ensureMenuMusic();
+  if (screens.menu.classList.contains("active")) startMenuMusic();
+}
+
+function syncMenuMusic(name) {
+  if (name === "menu" && menuMusic.unlocked) startMenuMusic();
+  else stopMenuMusic();
+}
 
 function ensureThree() {
   if (renderer || !window.THREE) return;
@@ -267,6 +451,7 @@ function logout() {
 function showScreen(name) {
   Object.values(screens).forEach((screen) => screen.classList.remove("active"));
   screens[name].classList.add("active");
+  syncMenuMusic(name);
 }
 
 function rand(min, max) {
@@ -1317,6 +1502,8 @@ function endMatch() {
   }
   persist();
   const won = place === 1;
+  screens.results.classList.toggle("win-bg", place >= 1 && place <= 4);
+  screens.results.classList.toggle("loss-bg", place >= 5 && place <= 8);
 
   ui.resultTitle.textContent = place === 1 ? "Победа!" : `Место ${place}`;
   ui.rewardLine.textContent = `Награда: ${reward} монет · собрано ${game.player.gems} кристаллов`;
@@ -1771,6 +1958,9 @@ ui.joystick.addEventListener("pointermove", (event) => {
 
 ui.joystick.addEventListener("pointerup", resetJoystick);
 ui.joystick.addEventListener("pointercancel", resetJoystick);
+
+window.addEventListener("pointerdown", unlockMenuMusic, { once: true });
+window.addEventListener("keydown", unlockMenuMusic, { once: true });
 
 window.addEventListener("keydown", (event) => {
   if (event.target && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
