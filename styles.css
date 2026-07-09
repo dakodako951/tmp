@@ -242,7 +242,7 @@ p {
   grid-column: 1 / 2;
   grid-row: 2;
   width: min(100%, 900px);
-  min-height: clamp(360px, 46vh, 620px);
+  min-height: clamp(455px, 58vh, 680px);
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -256,7 +256,7 @@ p {
   flex-direction: column;
   justify-content: flex-start;
   padding-top: 22px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .shop-panel .panel-head {
@@ -310,6 +310,74 @@ p {
   border-radius: 8px;
   background: white;
   text-align: left;
+}
+
+.hero-card {
+  display: grid;
+  gap: 8px;
+}
+
+.chest-card {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  min-height: 250px;
+  align-content: start;
+  text-align: center;
+  overflow: hidden;
+}
+
+.chest-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+  background: radial-gradient(circle at 50% 18%, #13c7d4, transparent 44%);
+  pointer-events: none;
+}
+
+.chest-card > * {
+  position: relative;
+}
+
+.chest-art-wrap {
+  height: 132px;
+  display: grid;
+  place-items: end center;
+}
+
+.chest-art {
+  max-width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 0 rgba(23, 33, 43, 0.16));
+}
+
+.chest-small .chest-art {
+  max-height: 105px;
+}
+
+.chest-mega .chest-art {
+  max-height: 128px;
+}
+
+.chest-giant .chest-art {
+  max-height: 155px;
+}
+
+.chest-mega {
+  border-color: rgba(255, 202, 58, 0.72);
+}
+
+.chest-giant {
+  border-color: rgba(19, 199, 212, 0.72);
+  box-shadow: inset 0 0 0 2px rgba(19, 199, 212, 0.34), 0 5px 0 rgba(23, 33, 43, 0.18);
+}
+
+.chest-card:disabled,
+.shop-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .hero-card.selected {
@@ -444,6 +512,55 @@ p {
   color: var(--muted);
   font-size: 13px;
   font-weight: 750;
+}
+
+.hero-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: #1b5f6b;
+  white-space: nowrap;
+}
+
+.xp-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.xp-bar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(23, 33, 43, 0.12);
+}
+
+.xp-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #13c7d4, #ffca3a);
+}
+
+.chest-reward {
+  min-height: 26px;
+  margin-top: 10px;
+  color: #1b5f6b;
+  font-weight: 950;
 }
 
 #game {

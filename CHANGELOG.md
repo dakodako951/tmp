@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here.
 
+## [v1.6.0] - 2026-07-09
+
+### Added
+
+- Menu chest system with small, mega and giant chest rewards.
+- Chest artwork assets for the new shop cards.
+- Hero XP, level display and progress bars in the hero roster.
+- Hero level stat scaling for player units.
+- Server-side hero progress storage and migration for existing local databases.
+- Chest reward feedback line in the shop panel.
+- Hero XP and menu chest verification screenshots.
+
+### Changed
+
+- Shop now combines chest cards with upgrade cards.
+- Player progress sync now includes hero XP and levels.
+- Refreshed desktop, mobile and menu verification screenshots.
+
 ## [v1.5.0] - 2026-07-09
 
 ### Added

@@ -25,6 +25,7 @@ const ui = {
   squad: document.getElementById("squadBar"),
   heroSelect: document.getElementById("heroSelect"),
   shop: document.getElementById("shopItems"),
+  chestReward: document.getElementById("chestReward"),
   wallet: document.getElementById("walletCoins"),
   resultTitle: document.getElementById("resultTitle"),
   victoryLogo: document.getElementById("victoryLogo"),
@@ -83,7 +84,50 @@ const upgrades = [
   { id: "armor", name: "Броня", desc: "+15% здоровье", cost: 140 }
 ];
 
+const menuChests = [
+  {
+    id: "small",
+    name: "Small Chest",
+    rarity: "Common",
+    image: "assets/chest-small.png",
+    cost: 25,
+    coins: 10,
+    xp: 35,
+    upgradeRolls: 1,
+    heroChance: 0.35
+  },
+  {
+    id: "mega",
+    name: "Mega Chest",
+    rarity: "Epic",
+    image: "assets/chest-mega.png",
+    cost: 75,
+    coins: 28,
+    xp: 90,
+    upgradeRolls: 2,
+    heroChance: 0.7
+  },
+  {
+    id: "giant",
+    name: "Giant Chest",
+    rarity: "Legendary",
+    image: "assets/chest-giant.png",
+    cost: 150,
+    coins: 70,
+    xp: 180,
+    upgradeRolls: 3,
+    heroChance: 1
+  }
+];
+
 const save = JSON.parse(localStorage.getItem("crystal-squad-save") || '{"coins":0,"upgrades":{}}');
+save.heroProgress = save.heroProgress || {};
+heroes.forEach((hero) => {
+  save.heroProgress[hero.id] = {
+    level: Math.max(1, Number(save.heroProgress[hero.id]?.level) || 1),
+    xp: Math.max(0, Number(save.heroProgress[hero.id]?.xp) || 0)
+  };
+});
 let selectedHero = heroes[0].id;
 let game = null;
 let keys = new Set();
@@ -380,6 +424,8 @@ function applyUser(user) {
   currentUser = user;
   save.coins = user.coins || 0;
   save.upgrades = user.upgrades || {};
+  save.heroProgress = user.heroProgress || save.heroProgress || {};
+  heroes.forEach((hero) => getHeroProgress(hero.id));
   selectedHero = user.selectedHero || selectedHero;
   ui.accountName.textContent = user.nick || "Игрок";
   ui.accountWins.textContent = user.wins || 0;
@@ -427,6 +473,7 @@ async function syncProgress(extra = {}) {
       body: JSON.stringify({
         coins: save.coins,
         upgrades: save.upgrades,
+        heroProgress: save.heroProgress,
         selectedHero,
         wins: currentUser.wins || 0,
         matches: currentUser.matches || 0,
@@ -470,9 +517,35 @@ function getHero(id) {
   return heroes.find((hero) => hero.id === id) || heroes[0];
 }
 
+function xpToNext(level) {
+  return 100 + (level - 1) * 60;
+}
+
+function getHeroProgress(heroId) {
+  if (!save.heroProgress) save.heroProgress = {};
+  if (!save.heroProgress[heroId]) save.heroProgress[heroId] = { level: 1, xp: 0 };
+  return save.heroProgress[heroId];
+}
+
+function grantHeroXp(heroId, amount) {
+  const progress = getHeroProgress(heroId);
+  progress.xp += amount;
+  let leveled = 0;
+  while (progress.xp >= xpToNext(progress.level)) {
+    progress.xp -= xpToNext(progress.level);
+    progress.level += 1;
+    leveled += 1;
+  }
+  return leveled;
+}
+
 function renderMenu() {
   ui.wallet.textContent = save.coins;
-  ui.heroSelect.innerHTML = heroes.map((hero) => `
+  ui.heroSelect.innerHTML = heroes.map((hero) => {
+    const progress = getHeroProgress(hero.id);
+    const nextXp = xpToNext(progress.level);
+    const xpPercent = clamp((progress.xp / nextXp) * 100, 0, 100);
+    return `
     <button class="hero-card ${hero.id === selectedHero ? "selected" : ""}" data-hero="${hero.id}">
       <span class="avatar-row">
         <span class="avatar portrait" style="background:${hero.color}">
@@ -483,10 +556,27 @@ function renderMenu() {
           <span class="hero-role">${hero.role} · ${hero.rarity}</span>
         </span>
       </span>
+      <span class="hero-progress">
+        <span class="level-badge">★ Ур. ${progress.level}</span>
+        <span class="xp-text">XP ${progress.xp}/${nextXp}</span>
+      </span>
+      <span class="xp-bar"><span style="width:${xpPercent}%"></span></span>
+    </button>
+  `;
+  }).join("");
+
+  const chestCards = menuChests.map((chest) => `
+    <button class="shop-card chest-card chest-${chest.id}" data-open-chest="${chest.id}" ${save.coins < chest.cost ? "disabled" : ""}>
+      <span class="chest-art-wrap">
+        <img class="chest-art" src="${chest.image}" alt="${chest.name}">
+      </span>
+      <span class="shop-name">${chest.name}</span>
+      <span class="hero-role">${chest.rarity} · ${chest.cost} монет</span>
+      <span class="shop-desc">Монеты, герой и шанс на улучшение</span>
     </button>
   `).join("");
 
-  ui.shop.innerHTML = upgrades.map((item) => {
+  const upgradeCards = upgrades.map((item) => {
     const owned = save.upgrades[item.id];
     return `
       <button class="shop-card" data-buy="${item.id}" ${owned ? "disabled" : ""}>
@@ -495,6 +585,7 @@ function renderMenu() {
       </button>
     `;
   }).join("");
+  ui.shop.innerHTML = chestCards + upgradeCards;
 
   document.querySelectorAll("[data-hero]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -517,12 +608,52 @@ function renderMenu() {
       renderMenu();
     });
   });
+
+  document.querySelectorAll("[data-open-chest]").forEach((button) => {
+    button.addEventListener("click", () => openMenuChest(button.dataset.openChest));
+  });
+}
+
+function openMenuChest(chestId) {
+  const chest = menuChests.find((item) => item.id === chestId);
+  if (!chest || save.coins < chest.cost) return;
+
+  save.coins -= chest.cost;
+  save.coins += chest.coins;
+  const rewards = [`+${chest.coins} монет`];
+  let xpHeroId = selectedHero;
+  const lockedUpgrades = upgrades.filter((item) => !save.upgrades[item.id]);
+  for (let i = 0; i < chest.upgradeRolls && lockedUpgrades.length; i++) {
+    const upgrade = lockedUpgrades.splice(Math.floor(Math.random() * lockedUpgrades.length), 1)[0];
+    save.upgrades[upgrade.id] = true;
+    rewards.push(upgrade.name);
+  }
+
+  if (Math.random() <= chest.heroChance) {
+    const hero = heroes[Math.floor(Math.random() * heroes.length)];
+    selectedHero = hero.id;
+    xpHeroId = hero.id;
+    rewards.push(hero.name);
+  }
+
+  if (!rewards.length) rewards.push("бонус получен");
+  const xpHero = getHero(xpHeroId);
+  const leveled = grantHeroXp(xpHeroId, chest.xp);
+  rewards.push(`${xpHero.name}: XP +${chest.xp}${leveled ? `, Ур. ${getHeroProgress(xpHeroId).level}` : ""}`);
+  ui.chestReward.textContent = `${chest.name}: ${rewards.join(" · ")}`;
+  persist();
+  renderMenu();
 }
 
 function makeUnit(heroId, x, y, owner, level = 1) {
   const hero = getHero(heroId);
-  let hp = hero.hp * (1 + level * 0.16);
+  const progressLevel = owner === "player" ? getHeroProgress(heroId).level : 1;
+  const heroBonus = Math.max(0, progressLevel - 1);
+  let hp = hero.hp * (1 + level * 0.16) * (1 + heroBonus * (heroId === "tank" ? 0.11 : 0.06));
   if (owner === "player" && save.upgrades.armor) hp *= 1.15;
+  const damageBonus = heroBonus * (heroId === "ranger" || heroId === "mage" || heroId === "assassin" ? 0.08 : 0.045);
+  const speedBonus = heroBonus * (heroId === "assassin" ? 0.025 : 0.006);
+  const rangeBonus = heroId === "mage" ? heroBonus * 3 : 0;
   return {
     type: "unit",
     heroId,
@@ -540,10 +671,10 @@ function makeUnit(heroId, x, y, owner, level = 1) {
     walkPhase: rand(0, Math.PI * 2),
     hp,
     maxHp: hp,
-    damage: hero.damage * (1 + (level - 1) * 0.55) * (owner === "player" && save.upgrades.blade ? 1.1 : 1),
-    range: hero.range,
-    speed: hero.speed * (owner === "player" && save.upgrades.boots ? 1.08 : 1),
-    level,
+    damage: hero.damage * (1 + (level - 1) * 0.55) * (1 + damageBonus) * (owner === "player" && save.upgrades.blade ? 1.1 : 1),
+    range: hero.range + rangeBonus,
+    speed: hero.speed * (1 + speedBonus) * (owner === "player" && save.upgrades.boots ? 1.08 : 1),
+    level: Math.max(level, progressLevel),
     radius: 15 + level * 2,
     cooldown: rand(0, 0.35),
     healTimer: 0

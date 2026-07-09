@@ -39,6 +39,12 @@ db.exec(`
   );
 `);
 
+try {
+  db.exec("ALTER TABLE users ADD COLUMN hero_progress TEXT NOT NULL DEFAULT '{}'");
+} catch {
+  // Existing databases already have this column.
+}
+
 function sendJson(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
@@ -99,6 +105,7 @@ function publicUser(user) {
     email: user.email,
     coins: user.coins,
     upgrades: JSON.parse(user.upgrades || "{}"),
+    heroProgress: JSON.parse(user.hero_progress || "{}"),
     selectedHero: user.selected_hero,
     wins: user.wins,
     matches: user.matches
@@ -152,11 +159,12 @@ async function handleApi(req, res, url) {
       const body = await readJson(req);
       const coins = Math.max(0, Math.min(999999, Number(body.coins ?? user.coins) || 0));
       const upgrades = JSON.stringify(body.upgrades && typeof body.upgrades === "object" ? body.upgrades : JSON.parse(user.upgrades || "{}"));
+      const heroProgress = JSON.stringify(body.heroProgress && typeof body.heroProgress === "object" ? body.heroProgress : JSON.parse(user.hero_progress || "{}"));
       const selectedHero = safeHero(body.selectedHero || user.selected_hero);
       const wins = Math.max(user.wins, Number(body.wins ?? user.wins) || 0);
       const matches = Math.max(user.matches, Number(body.matches ?? user.matches) || 0);
-      db.prepare("UPDATE users SET coins = ?, upgrades = ?, selected_hero = ?, wins = ?, matches = ? WHERE id = ?")
-        .run(coins, upgrades, selectedHero, wins, matches, user.id);
+      db.prepare("UPDATE users SET coins = ?, upgrades = ?, hero_progress = ?, selected_hero = ?, wins = ?, matches = ? WHERE id = ?")
+        .run(coins, upgrades, heroProgress, selectedHero, wins, matches, user.id);
       const fresh = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
       return sendJson(res, 200, { user: publicUser(fresh) });
     }
